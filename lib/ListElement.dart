@@ -21,7 +21,7 @@ class _ListElementState extends State<ListElement> {
       List jsonResponse = jsonDecode(response.body);
       return jsonResponse.map((launch) => Launch.fromJson(launch)).toList();
     } else {
-      throw Exception('Failed to load jobs');
+      throw Exception('Failed to load missions');
     }
   }
 
