@@ -1,4 +1,4 @@
-import 'package:assignment/ListElement.dart';
+import 'package:assignment/launch_model.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 void main() {
@@ -12,8 +12,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home:  MyHomePage(title: 'Jobs Listing'),
+      home:  MyHomePage(title: 'Home'),
     );
   }
 }
@@ -37,25 +36,18 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Jobs',
+            Text('Space Missions',
               style: GoogleFonts.roboto(
-                fontSize: 20,
-                fontWeight: FontWeight.bold
+                  fontSize: 25,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white
               ),
             ),
-            const Icon(Icons.notifications_outlined)
           ],
         ),
+        backgroundColor: Colors.blueGrey,
       ),
       body: ListElement(),
-      bottomNavigationBar: BottomNavigationBar(
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.work_outline), label: 'Jobs'),
-            BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
-            BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: 'Settings')
-          ],
-        selectedLabelStyle: GoogleFonts.roboto(fontSize: 10),
-      ),// This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }

@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
-import 'package:timeago/timeago.dart' as timeago;
+import 'package:readmore/readmore.dart';
 
 class ListElement extends StatefulWidget {
   const ListElement({super.key});
@@ -12,78 +13,74 @@ class ListElement extends StatefulWidget {
 }
 
 class _ListElementState extends State<ListElement> {
-  Future<List<Job>> fetchAllJobs() async {
-    final response = await http.get(Uri.parse('https://mpa0771a40ef48fcdfb7.free.beeceptor.com/jobs'));
+  bool isReadMore = false;
+  Future<List<Launch>> fetchAllLaunches() async {
+    final response = await http.get(Uri.parse('https://api.spacexdata.com/v3/missions'));
 
     if (response.statusCode == 200) {
-      Map<String, dynamic> jsonResponse = jsonDecode(response.body);
-      List<dynamic> jobsList = jsonResponse['data'];
-      return jobsList.map((job) => Job.fromJson(job['job'])).toList();
+      List jsonResponse = jsonDecode(response.body);
+      return jsonResponse.map((launch) => Launch.fromJson(launch)).toList();
     } else {
       throw Exception('Failed to load jobs');
     }
   }
 
-  String getCompanyName(String companyName){
-    final bool nonLatinWord = RegExp(r'[^\x00-\x7F]+').hasMatch(companyName);
-    if(nonLatinWord){
-      return 'Company Name Unavailable';
-    }
-    return companyName;
+  Widget buildText(String text){
+    final lines = isReadMore ? null : 1;
+    return Text(
+      text,
+      style: GoogleFonts.openSans(fontSize: 13, color: Colors.grey),
+      maxLines: lines,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: FutureBuilder<List<Job>>(
-        future: fetchAllJobs(),
+      child: FutureBuilder<List<Launch>>(
+        future: fetchAllLaunches(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             print(snapshot.error);
             return const Text('Error');
+          } else if (!snapshot.hasData) {
+            return const CircularProgressIndicator(); // Display loader if no data
           } else {
             return ListView.builder(
               itemCount: snapshot.data!.length,
               itemBuilder: (context, index) {
-                final job = snapshot.data![index];
-                String timeAgo = timeago.format(job.updatedDate);
+                final launch = snapshot.data![index];
                 return Card(
                   key: ValueKey(index),
                   margin: const EdgeInsets.all(8.0),
+                  shadowColor: Colors.black,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0), // Adjusted padding
+                    padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          crossAxisAlignment: CrossAxisAlignment.center, // Align logo and text in the center
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8.0),
-                              child: Image.network(
-                              job.companyLogo,
-                              width: 60, // Adjusted size of the logo
-                              height: 60,
-                              fit: BoxFit.contain,
-                            ),
-                            ),
-
-                            const SizedBox(width: 10), // Space between logo and text
+                            const SizedBox(width: 10),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    job.title,
-                                    style: GoogleFonts.roboto(fontSize: 15, fontWeight: FontWeight.bold),
+                                    launch.missionName.toString(),
+                                    style: GoogleFonts.openSans(fontSize: 25),
                                   ),
-                                  Text(
-                                    getCompanyName(job.companyName),
-                                    style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
-                                  ),
-                                  Text(
-                                    '${job.location}, ${job.workPlace}, ${job.jobType}',
-                                    style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
+                                  buildText(launch.description.toString()),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.white70),
+                                      onPressed: (){
+                                    setState(() {
+                                      isReadMore = !isReadMore;
+                                    });},
+                                      child: Text((isReadMore ? 'Less' : 'More')),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -92,10 +89,25 @@ class _ListElementState extends State<ListElement> {
                         ),
                         const SizedBox(height: 30),
                         Align(
-                          alignment: Alignment.bottomRight,
-                          child: Text(
-                            timeAgo,
-                            style: GoogleFonts.roboto(fontSize: 10, color: Colors.grey),
+                          alignment: Alignment.center,
+                          child: Wrap(
+                            spacing: 20.0, // space between the chips
+                            runSpacing: 13.0, // space between rows if chips overflow
+                            children: launch.payloadIds!.map((payloadId) {
+                              return Chip(
+                                elevation: 20,
+                                padding: const EdgeInsets.all(8),
+                                backgroundColor: Color.fromARGB(
+                                    255, Random().nextInt(256), Random().nextInt(256), Random().nextInt(256)
+                                ),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                label: Text(
+                                  payloadId,
+                                  style: GoogleFonts.openSans(fontSize: 15, color: Colors.white),
+                                ),
+                              );
+                            }).toList(),
                           ),
                         ),
                       ],
@@ -111,34 +123,39 @@ class _ListElementState extends State<ListElement> {
   }
 }
 
-class Job {
-  final String title;
-  final String location;
-  final String companyName;
-  final String companyLogo;
-  final String jobType;
-  final String workPlace;
-  final DateTime updatedDate;
+class Launch {
+  String? missionName;
+  String? missionId;
+  List<String>? manufacturers;
+  List<String>? payloadIds;
+  String? wikipedia;
+  String? website;
+  String? twitter;
+  String? description;
 
-  Job({
-    required this.title,
-    required this.location,
-    required this.companyName,
-    required this.companyLogo,
-    required this.jobType,
-    required this.workPlace,
-    required this.updatedDate,
-  });
+  Launch({this.missionName, this.missionId, this.manufacturers, this.payloadIds, this.wikipedia, this.website, this.twitter, this.description});
 
-  factory Job.fromJson(Map<String, dynamic> json) {
-    return Job(
-      title: json['title'] ?? 'No Title',
-      companyName: json['company']?['name'] ?? 'No Company',
-      companyLogo: json['company']?['logo'] ?? 'Default', // Default image if no logo
-      location: json['location']?['name_en'] ?? 'Unknown Location',
-      workPlace: json['workplace_preference']?['name_en'] ?? 'Default',
-      jobType: json['type']?['name_en'] ?? 'N/A',
-      updatedDate: DateTime.parse(json['updated_date']),
-    );
+  Launch.fromJson(Map<String, dynamic> json) {
+    missionName = json['mission_name'];
+    missionId = json['mission_id'];
+    manufacturers = json['manufacturers'].cast<String>();
+    payloadIds = json['payload_ids'].cast<String>();
+    wikipedia = json['wikipedia'];
+    website = json['website'];
+    twitter = json['twitter'];
+    description = json['description'];
+  }
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = new Map<String, dynamic>();
+    data['mission_name'] = this.missionName;
+    data['mission_id'] = this.missionId;
+    data['manufacturers'] = this.manufacturers;
+    data['payload_ids'] = this.payloadIds;
+    data['wikipedia'] = this.wikipedia;
+    data['website'] = this.website;
+    data['twitter'] = this.twitter;
+    data['description'] = this.description;
+    return data;
   }
 }
