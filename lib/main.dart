@@ -1,125 +1,263 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:intl/intl.dart';
+
+import 'news_api.dart'; // Add your news API file here
+import 'news_bloc.dart'; // Add your NewsBloc file here
+import 'news_event.dart'; // Add your NewsEvent file here
+import 'news_state.dart'; // Add your NewsState file here
 
 void main() {
-  runApp(const MyApp());
+  runApp(const NewsApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class NewsApp extends StatelessWidget {
+  const NewsApp({Key? key}) : super(key: key);
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+      debugShowCheckedModeBanner: false,
+      home: BlocProvider(
+        create: (context) => NewsBloc(NewsService())..add(FetchNews()),
+        child: const NewsScreen(),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
+String formatDate(String? dateString) {
+  if (dateString == null) return 'Unknown Date';
+  try {
+    final dateTime = DateTime.parse(dateString);
+    return DateFormat('MMM d, yyyy, h:mm a').format(dateTime);
+  } catch (e) {
+    return 'Invalid Date';
+  }
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
+class NewsScreen extends StatelessWidget {
+  const NewsScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
+        backgroundColor:
+            Colors.white, // Changed to white (default neutral color)
+        elevation: 1, // Slight shadow for separation
+        title: Row(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  "Headline News",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black, // Black text for readability
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  "Read Top News Today",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey, // Subtle gray for subtitle
+                  ),
+                ),
+              ],
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            const Spacer(),
+            Image.asset(
+              'assets/newspaper.png', // Ensure this asset is in your project
+              height: 40,
+              width: 40,
+              fit: BoxFit.cover,
             ),
           ],
         ),
+        iconTheme: const IconThemeData(color: Colors.black), // Black icon color
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      body: BlocBuilder<NewsBloc, NewsState>(
+        builder: (context, state) {
+          if (state is NewsLoading) {
+            return ListView.builder(
+              itemCount: 5,
+              itemBuilder: (context, index) {
+                return Shimmer.fromColors(
+                  baseColor: Colors.grey[300]!,
+                  highlightColor: Colors.grey[100]!,
+                  child: ListTile(
+                    title: Container(height: 20, color: Colors.white),
+                    subtitle: Container(height: 15, color: Colors.white),
+                  ),
+                );
+              },
+            );
+          } else if (state is NewsLoaded) {
+            return ListView.builder(
+              itemCount: state.articles.length,
+              itemBuilder: (context, index) {
+                final article = state.articles[index];
+                String publishedAt = formatDate(article['publishedAt']);
+
+                return Card(
+                  key: ValueKey(index),
+                  margin: const EdgeInsets.all(8.0),
+                  child: InkWell(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(20),
+                          ),
+                        ),
+                        builder: (context) => NewsDetail(article: article),
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12.0,
+                        horizontal: 16.0,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8.0),
+                                child: Image.network(
+                                  article['urlToImage'] ?? '',
+                                  width: 60,
+                                  height: 60,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Icon(
+                                      Icons.broken_image,
+                                      size: 60,
+                                      color: Colors.grey,
+                                    );
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      article['title'] ?? 'No Title',
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      article['author'] ?? 'Unknown Author',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    Text(
+                                      article['description'] != null &&
+                                              article['description']!.length >
+                                                  50
+                                          ? '${article['description']!.substring(0, 50)}...'
+                                          : article['description'] ??
+                                              'No Description',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Align(
+                            alignment: Alignment.bottomRight,
+                            child: Text(
+                              publishedAt,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          } else if (state is NewsError) {
+            return Center(child: Text(state.message));
+          }
+          return const SizedBox.shrink();
+        },
+      ),
+    );
+  }
+}
+
+class NewsDetail extends StatelessWidget {
+  final Map<String, dynamic> article;
+
+  const NewsDetail({Key? key, required this.article}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            article['urlToImage'] != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(12.0),
+                    child: Image.network(
+                      article['urlToImage']!,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.broken_image,
+                          size: 100,
+                          color: Colors.grey,
+                        );
+                      },
+                    ),
+                  )
+                : const Icon(Icons.broken_image, size: 100),
+            const SizedBox(height: 10),
+            Text(
+              article['title'] ?? 'No Title',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              article['author'] ?? 'Unknown Author',
+              style: const TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 10),
+            Text(article['content'] ?? 'No Content'),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
     );
   }
 }
